@@ -471,8 +471,6 @@ def analyze_url(url_to_check):
     result_container = st.container()
     
     with result_container:
-        # Create a styled container with the appropriate background
-        st.markdown(f'<div class="result-container {risk_class}">', unsafe_allow_html=True)
         
         # URL display
         st.markdown(f'<div class="url-display">{url_to_check}</div>', unsafe_allow_html=True)
