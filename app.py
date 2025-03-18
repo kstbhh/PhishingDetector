@@ -25,60 +25,180 @@ if "url_to_check" in st.session_state:
     url_to_analyze = st.session_state.url_to_check
     del st.session_state.url_to_check
 
-# Custom CSS (simplified without dark mode toggle)
+# Enhanced colorful modern UI styling
 st.markdown("""
 <style>
-    /* Global Styles */
+    /* Global Styles with colorful gradient background */
+    .main {
+        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        padding: 1.5rem;
+        border-radius: 20px;
+    }
+    
     .main .block-container {
         padding-top: 2rem;
     }
     
-    /* Header styles */
+    /* Header styles with gradient text */
     .main-header {
-        font-size: 2.2rem;
-        font-weight: 700;
+        font-size: 2.5rem;
+        font-weight: 800;
         text-align: center;
         margin-bottom: 0.5rem;
+        background: linear-gradient(90deg, #4776E6, #8E54E9);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
     
     .sub-header {
         font-size: 1.1rem;
-        opacity: 0.8;
         text-align: center;
         margin-bottom: 2rem;
+        color: #718096;
     }
     
-    /* Result container */
+    /* 3D Monkey Animation CSS */
+    .monkey3d-container {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+        margin-bottom: 15px;
+        perspective: 500px;
+    }
+    
+    .monkey-face {
+        position: relative;
+        width: 100px;
+        height: 100px;
+        margin: 0 auto;
+        background: linear-gradient(135deg, #A67C52, #8B5A2B);
+        border-radius: 50%;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        transform-style: preserve-3d;
+        transform: rotateX(15deg);
+        transition: transform 0.3s ease;
+    }
+    
+    .monkey-ears {
+        position: absolute;
+        width: 45px;
+        height: 45px;
+        background: linear-gradient(135deg, #8B5A2B, #6B4226);
+        border-radius: 50%;
+        top: -10px;
+        z-index: -1;
+    }
+    
+    .ear-left {
+        left: -10px;
+        transform: rotate(-15deg);
+    }
+    
+    .ear-right {
+        right: -10px;
+        transform: rotate(15deg);
+    }
+    
+    .monkey-muzzle {
+        position: absolute;
+        width: 60px;
+        height: 40px;
+        background: linear-gradient(135deg, #D2B48C, #BC8F6A);
+        border-radius: 40px;
+        bottom: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    .eyes-container {
+        position: absolute;
+        width: 80px;
+        height: 30px;
+        top: 30px;
+        left: 10px;
+        display: flex;
+        justify-content: space-between;
+    }
+    
+    .eye {
+        position: relative;
+        width: 28px;
+        height: 28px;
+        background: white;
+        border-radius: 50%;
+        overflow: hidden;
+        box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+    }
+    
+    .pupil {
+        position: absolute;
+        width: 14px;
+        height: 14px;
+        background: #000;
+        border-radius: 50%;
+        top: 7px;
+        left: 7px;
+        transition: all 0.1s;
+    }
+    
+    .monkey-mouth {
+        position: absolute;
+        width: 30px;
+        height: 15px;
+        background: #6B4226;
+        border-radius: 0 0 15px 15px;
+        bottom: 22px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+    
+    @keyframes monkeyBreathing {
+        0%, 100% { transform: rotateX(15deg) scale(1); }
+        50% { transform: rotateX(15deg) scale(1.03); }
+    }
+    
+    .monkey-face {
+        animation: monkeyBreathing 3s infinite ease-in-out;
+    }
+    
+    /* Result container with gradient backgrounds */
     .result-container {
         padding: 1.5rem;
-        border-radius: 12px;
+        border-radius: 16px;
         margin: 1.5rem 0;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        transition: transform 0.3s ease;
+    }
+    
+    .result-container:hover {
+        transform: translateY(-5px);
     }
     
     .safe-result {
-        background-color: #D1FAE5;
-        border: 1px solid #10B981;
+        background: linear-gradient(120deg, #d4fc79, #96e6a1);
+        border-left: 6px solid #10B981;
     }
     
     .warning-result {
-        background-color: #FEF3C7;
-        border: 1px solid #F59E0B;
+        background: linear-gradient(120deg, #f6d365, #fda085);
+        border-left: 6px solid #F59E0B;
     }
     
     .phishing-result {
-        background-color: #FEE2E2;
-        border: 1px solid #EF4444;
+        background: linear-gradient(120deg, #ff9a9e, #fad0c4);
+        border-left: 6px solid #EF4444;
     }
     
     /* URL display */
     .url-display {
         font-family: monospace;
-        padding: 0.8rem;
-        background-color: rgba(0,0,0,0.05);
-        border-radius: 8px;
+        padding: 1rem;
+        background-color: rgba(255,255,255,0.7);
+        border-radius: 10px;
         margin-bottom: 1rem;
         word-break: break-all;
+        border: 1px solid rgba(0,0,0,0.1);
     }
     
     /* Risk indicator */
@@ -89,34 +209,8 @@ st.markdown("""
     }
     
     .risk-icon {
-        font-size: 2rem;
+        font-size: 2.2rem;
         margin-right: 0.8rem;
-    }
-    
-    /* Feature list */
-    .feature-list {
-        background-color: rgba(255,255,255,0.4);
-        border-radius: 8px;
-        padding: 1rem;
-        margin: 1rem 0;
-    }
-    
-    .feature-item {
-        margin-bottom: 0.5rem;
-        padding-left: 1.5rem;
-        position: relative;
-    }
-    
-    .feature-item:before {
-        content: "•";
-        position: absolute;
-        left: 0.5rem;
-    }
-    
-    /* Header animation */
-    .shield-animation {
-        font-size: 5rem;
-        text-align: center;
         animation: pulse 2s infinite;
     }
     
@@ -126,12 +220,148 @@ st.markdown("""
         100% { transform: scale(1); }
     }
     
+    /* Feature list */
+    .feature-list {
+        background-color: rgba(255,255,255,0.7);
+        border-radius: 12px;
+        padding: 1.2rem;
+        margin: 1rem 0;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    
+    .feature-item {
+        margin-bottom: 0.7rem;
+        padding-left: 1.8rem;
+        position: relative;
+        line-height: 1.5;
+    }
+    
+    .feature-item:before {
+        content: "•";
+        position: absolute;
+        left: 0.7rem;
+        font-size: 1.2rem;
+        color: #4776E6;
+    }
+    
+    /* Button styling */
+    .stButton > button {
+        border-radius: 12px;
+        padding: 0.5rem 1.5rem;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 7px 14px rgba(0,0,0,0.1);
+    }
+    
+    /* Text input styling */
+    .stTextInput > div > div > input {
+        border-radius: 12px;
+        border: 2px solid #e2e8f0;
+        padding: 0.8rem 1rem;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #4776E6;
+        box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.15);
+    }
+    
+    /* Modal for website visit options */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0,0,0,0.7);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.3s ease;
+    }
+    
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+    
+    .modal-container {
+        background: white;
+        border-radius: 16px;
+        max-width: 500px;
+        width: 90%;
+        padding: 2rem;
+        box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        animation: slideUp 0.3s ease;
+    }
+    
+    @keyframes slideUp {
+        from { transform: translateY(50px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+    
+    .modal-safe {
+        border-top: 8px solid #10B981;
+    }
+    
+    .modal-warning {
+        border-top: 8px solid #F59E0B;
+    }
+    
+    .modal-danger {
+        border-top: 8px solid #EF4444;
+    }
+    
+    .modal-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
+    
+    .modal-title {
+        font-size: 1.8rem;
+        font-weight: 700;
+        margin: 0.5rem 0;
+    }
+    
+    .modal-safe .modal-title {
+        color: #10B981;
+    }
+    
+    .modal-warning .modal-title {
+        color: #F59E0B;
+    }
+    
+    .modal-danger .modal-title {
+        color: #EF4444;
+    }
+    
+    .modal-danger .modal-icon {
+        animation: shake 0.5s infinite;
+    }
+    
+    @keyframes shake {
+        0% { transform: translateX(0); }
+        25% { transform: translateX(-10px); }
+        50% { transform: translateX(0); }
+        75% { transform: translateX(10px); }
+        100% { transform: translateX(0); }
+    }
+    
     /* Loading animation */
     .loading-animation {
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
+        padding: 2rem;
     }
     
     .loading-dots {
@@ -144,16 +374,18 @@ st.markdown("""
         height: 12px;
         margin: 0 5px;
         border-radius: 50%;
-        background-color: #3B82F6;
+        background-color: #4776E6;
         animation: bounce 1.5s infinite;
     }
     
     .dot:nth-child(2) {
         animation-delay: 0.2s;
+        background-color: #8E54E9;
     }
     
     .dot:nth-child(3) {
         animation-delay: 0.4s;
+        background-color: #A953C6;
     }
     
     @keyframes bounce {
@@ -164,18 +396,165 @@ st.markdown("""
     /* Footer */
     .footer {
         text-align: center;
-        font-size: 0.8rem;
+        font-size: 0.9rem;
+        color: #718096;
         margin-top: 3rem;
-        padding-top: 1rem;
-        border-top: 1px solid rgba(0,0,0,0.1);
+        padding-top: 1.5rem;
+        border-top: 1px solid #e2e8f0;
+    }
+    
+    /* Visit website buttons */
+    .visit-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.7rem 1.5rem;
+        border-radius: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        text-decoration: none;
+        margin-top: 1rem;
+    }
+    
+    .visit-safe {
+        background: #10B981;
+        color: white !important;
+        border: none;
+    }
+    
+    .visit-safe:hover {
+        background: #059669;
+        text-decoration: none;
+    }
+    
+    .visit-warning {
+        background: #F59E0B;
+        color: white !important;
+        border: none;
+    }
+    
+    .visit-warning:hover {
+        background: #D97706;
+        text-decoration: none;
+    }
+    
+    .visit-danger {
+        background: #EF4444;
+        color: white !important;
+        border: none;
+    }
+    
+    .visit-danger:hover {
+        background: #DC2626;
+        text-decoration: none;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# App header
-st.markdown('<div class="shield-animation">🛡️</div>', unsafe_allow_html=True)
-st.markdown('<p class="main-header">Phishing URL Detector</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">🔎 Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
+# Add 3D monkey animation
+st.markdown("""
+<div class="monkey3d-container">
+    <div class="monkey-face">
+        <div class="monkey-ears ear-left"></div>
+        <div class="monkey-ears ear-right"></div>
+        <div class="eyes-container">
+            <div class="eye">
+                <div class="pupil" id="pupil-left"></div>
+            </div>
+            <div class="eye">
+                <div class="pupil" id="pupil-right"></div>
+            </div>
+        </div>
+        <div class="monkey-muzzle"></div>
+        <div class="monkey-mouth"></div>
+    </div>
+</div>
+
+<script>
+// Function to make monkey eyes follow cursor/input focus
+document.addEventListener('DOMContentLoaded', function() {
+    const leftPupil = document.getElementById('pupil-left');
+    const rightPupil = document.getElementById('pupil-right');
+    
+    // Initial position
+    updateEyes(10, 10);
+    
+    // Follow cursor
+    document.addEventListener('mousemove', function(e) {
+        const x = e.clientX;
+        const y = e.clientY;
+        updateEyes(x, y);
+    });
+    
+    // Focus on text input when typing
+    const inputs = document.querySelectorAll('input[type="text"]');
+    inputs.forEach(input => {
+        input.addEventListener('focus', function() {
+            const monkeyFace = document.querySelector('.monkey-face');
+            if (monkeyFace) monkeyFace.style.transform = 'rotateX(5deg) scale(1.05)';
+        });
+        
+        input.addEventListener('blur', function() {
+            const monkeyFace = document.querySelector('.monkey-face');
+            if (monkeyFace) monkeyFace.style.transform = 'rotateX(15deg) scale(1)';
+        });
+        
+        input.addEventListener('input', function() {
+            // Make pupils dilate slightly when typing
+            leftPupil.style.width = '16px';
+            leftPupil.style.height = '16px';
+            rightPupil.style.width = '16px';
+            rightPupil.style.height = '16px';
+            leftPupil.style.top = '6px';
+            leftPupil.style.left = '6px';
+            rightPupil.style.top = '6px';
+            rightPupil.style.left = '6px';
+            
+            // Reset after a short delay
+            setTimeout(() => {
+                leftPupil.style.width = '14px';
+                leftPupil.style.height = '14px';
+                rightPupil.style.width = '14px';
+                rightPupil.style.height = '14px';
+                leftPupil.style.top = '7px';
+                leftPupil.style.left = '7px';
+                rightPupil.style.top = '7px';
+                rightPupil.style.left = '7px';
+            }, 100);
+        });
+    });
+    
+    // Update eye positions based on cursor
+    function updateEyes(x, y) {
+        const eyes = document.querySelectorAll('.eye');
+        eyes.forEach(eye => {
+            const rect = eye.getBoundingClientRect();
+            const eyeX = rect.left + rect.width / 2;
+            const eyeY = rect.top + rect.height / 2;
+            
+            // Calculate angle and distance
+            const angle = Math.atan2(y - eyeY, x - eyeX);
+            const distance = Math.min(4, Math.sqrt(Math.pow(x - eyeX, 2) + Math.pow(y - eyeY, 2)) / 50);
+            
+            // Apply movement to pupils (limited range)
+            const pupil = eye.querySelector('.pupil');
+            const offsetX = Math.cos(angle) * distance;
+            const offsetY = Math.sin(angle) * distance;
+            
+            if (pupil) {
+                pupil.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+            }
+        });
+    }
+});
+</script>
+""", unsafe_allow_html=True)
+
+# Modern app header
+st.markdown('<p class="main-header">Phishing URL Detective</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">🔎 Protect yourself from online scams with AI-powered detection</p>', unsafe_allow_html=True)
 
 # Sidebar with history
 with st.sidebar:
@@ -447,30 +826,106 @@ def analyze_url(url_to_check):
         if len(st.session_state.url_history) > 10:
             st.session_state.url_history = st.session_state.url_history[:10]
     
-    # Determine risk level
+    # Determine risk level and prepare result container
     if phishing_probability < 20:
         risk_class = "safe-result"
         risk_text = "Low Risk"
         risk_icon = "✅"
         emoji = "🛡️"
         message = "This URL appears to be legitimate based on our analysis."
+        button_class = "visit-safe"
+        modal_content = f"""
+        <div class="modal-overlay" id="safeModal">
+            <div class="modal-container modal-safe">
+                <div class="modal-header">
+                    <div style="font-size: 3rem;">✅</div>
+                    <h3 class="modal-title">Safe URL Detected</h3>
+                </div>
+                <div>
+                    <p>This URL appears to be legitimate based on our analysis:</p>
+                    <div class="url-display">{url_to_check}</div>
+                    <p>You can safely proceed to this website.</p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <a href="{url_to_check}" target="_blank" class="visit-button visit-safe">
+                        Visit Website
+                    </a>
+                    <button onclick="document.getElementById('safeModal').style.display='none';" 
+                            style="padding: 0.7rem 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; background: white;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        """
     elif phishing_probability < 70:
         risk_class = "warning-result"
         risk_text = "Moderate Risk"
         risk_icon = "⚠️"
         emoji = "🔔"
         message = "This URL shows some suspicious characteristics. Proceed with caution."
+        button_class = "visit-warning"
+        modal_content = f"""
+        <div class="modal-overlay" id="warningModal">
+            <div class="modal-container modal-warning">
+                <div class="modal-header">
+                    <div style="font-size: 3rem; animation: pulse 1s infinite;">⚠️</div>
+                    <h3 class="modal-title">Warning: Moderate Risk</h3>
+                </div>
+                <div>
+                    <p>This URL shows some suspicious characteristics:</p>
+                    <div class="url-display">{url_to_check}</div>
+                    <p><strong>Are you sure you want to proceed?</strong> Use caution if you choose to continue.</p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <a href="{url_to_check}" target="_blank" class="visit-button visit-warning">
+                        Proceed Anyway
+                    </a>
+                    <button onclick="document.getElementById('warningModal').style.display='none';" 
+                            style="padding: 0.7rem 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; background: white;">
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+        """
     else:
         risk_class = "phishing-result"
         risk_text = "High Risk"
         risk_icon = "❌"
         emoji = "🚨"
         message = "This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!"
+        button_class = "visit-danger"
+        modal_content = f"""
+        <div class="modal-overlay" id="dangerModal">
+            <div class="modal-container modal-danger">
+                <div class="modal-header">
+                    <div style="font-size: 3rem; animation: shake 0.5s infinite;">🚨</div>
+                    <h3 class="modal-title">DANGER: High Risk</h3>
+                </div>
+                <div>
+                    <p>This URL shows strong signs of being a phishing attempt:</p>
+                    <div class="url-display">{url_to_check}</div>
+                    <p><strong>WARNING:</strong> Visiting this site could put your personal information at risk!</p>
+                </div>
+                <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 1.5rem;">
+                    <a href="{url_to_check}" target="_blank" class="visit-button visit-danger">
+                        I Understand the Risk
+                    </a>
+                    <button onclick="document.getElementById('dangerModal').style.display='none';" 
+                            style="padding: 0.7rem 1.5rem; border-radius: 12px; border: 1px solid #e2e8f0; background: white;">
+                        Stay Safe
+                    </button>
+                </div>
+            </div>
+        </div>
+        """
     
-    # Display results
+    # Display results with enhanced styling
     result_container = st.container()
     
     with result_container:
+        st.markdown(f'<div class="result-container {risk_class}">', unsafe_allow_html=True)
         
         # URL display
         st.markdown(f'<div class="url-display">{url_to_check}</div>', unsafe_allow_html=True)
@@ -500,6 +955,15 @@ def analyze_url(url_to_check):
         
         # Risk message
         st.markdown(f"### {emoji} {message}")
+        
+        # Visit website button (shows modal when clicked)
+        modal_id = "safeModal" if phishing_probability < 20 else "warningModal" if phishing_probability < 70 else "dangerModal"
+        st.markdown(f"""
+        <button onclick="document.getElementById('{modal_id}').style.display='flex';" class="visit-button {button_class}">
+            {risk_icon} Visit Website
+        </button>
+        {modal_content}
+        """, unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
 
