@@ -6,6 +6,9 @@ import os
 import re
 import joblib
 from urllib.parse import urlparse
+import datetime
+from streamlit_lottie import st_lottie
+import requests
 
 # Page configuration
 st.set_page_config(
@@ -14,102 +17,318 @@ st.set_page_config(
     layout="centered"
 )
 
-# Custom CSS
-st.markdown("""
+# Initialize session state for dark mode and URL history
+if "dark_mode" not in st.session_state:
+    st.session_state.dark_mode = False
+
+if "url_history" not in st.session_state:
+    st.session_state.url_history = []
+
+# Function to load Lottie animations
+def load_lottieurl(url: str):
+    r = requests.get(url)
+    if r.status_code != 200:
+        return None
+    return r.json()
+
+# Load animations
+security_animation = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_q4h3z8lq.json")
+loading_animation = load_lottieurl("https://assets7.lottiefiles.com/packages/lf20_p8bfn5to.json")
+
+# Get dark/light mode styles
+def get_theme_css():
+    if st.session_state.dark_mode:
+        return """
+        :root {
+            --background-color: #121212;
+            --text-color: #f0f0f0;
+            --card-bg: #1e1e1e;
+            --header-color: #90caf9;
+            --border-color: #333333;
+            --safe-bg: #0d312a;
+            --safe-border: #00513b;
+            --warning-bg: #332a0d;
+            --warning-border: #705e00;
+            --phishing-bg: #330d0d;
+            --phishing-border: #700000;
+            --input-bg: #2d2d2d;
+            --button-bg: #1565c0;
+        }
+        """
+    else:
+        return """
+        :root {
+            --background-color: #ffffff;
+            --text-color: #333333;
+            --card-bg: #ffffff;
+            --header-color: #1E3A8A;
+            --border-color: #e2e8f0;
+            --safe-bg: #D1FAE5;
+            --safe-border: #10B981;
+            --warning-bg: #FEF3C7;
+            --warning-border: #F59E0B;
+            --phishing-bg: #FEE2E2;
+            --phishing-border: #EF4444;
+            --input-bg: #f9fafb;
+            --button-bg: #3B82F6;
+        }
+        """
+
+# Custom CSS with dynamic theme
+st.markdown(f"""
 <style>
-    .main-header {
-        font-size: 2.5rem;
-        color: #1E3A8A;
+    {get_theme_css()}
+    
+    /* Global Styles */
+    body {{
+        color: var(--text-color);
+        background-color: var(--background-color);
+    }}
+    
+    .main .block-container {{
+        padding-top: 2rem;
+    }}
+    
+    h1, h2, h3, h4 {{
+        color: var(--header-color);
+    }}
+    
+    /* Header styles */
+    .main-header {{
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: var(--header-color);
         text-align: center;
-        margin-bottom: 1rem;
-    }
-    .sub-header {
-        font-size: 1.2rem;
-        color: #4B5563;
+        margin-bottom: 0.5rem;
+    }}
+    
+    .sub-header {{
+        font-size: 1.1rem;
+        color: var(--text-color);
+        opacity: 0.8;
         text-align: center;
         margin-bottom: 2rem;
-    }
-    .result-box {
+    }}
+    
+    /* Result container */
+    .result-container {{
         padding: 1.5rem;
-        border-radius: 10px;
-        margin-top: 1.5rem;
-    }
-    .safe-url {
-        background-color: #D1FAE5;
-        border: 1px solid #10B981;
-    }
-    .phishing-url {
-        background-color: #FEE2E2;
-        border: 1px solid #EF4444;
-    }
-    .warning-url {
-        background-color: #FEF3C7;
-        border: 1px solid #F59E0B;
-    }
-    .url-text {
+        border-radius: 12px;
+        margin: 1.5rem 0;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        transition: all 0.3s ease;
+    }}
+    
+    .safe-result {{
+        background-color: var(--safe-bg);
+        border: 1px solid var(--safe-border);
+    }}
+    
+    .warning-result {{
+        background-color: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+    }}
+    
+    .phishing-result {{
+        background-color: var(--phishing-bg);
+        border: 1px solid var(--phishing-border);
+    }}
+    
+    /* URL display */
+    .url-display {{
         font-family: monospace;
-        padding: 0.5rem;
-        background-color: rgba(0,0,0,0.05);
-        border-radius: 5px;
+        padding: 0.8rem;
+        background-color: rgba(0,0,0,0.1);
+        border-radius: 8px;
         margin-bottom: 1rem;
-    }
-    .footer {
-        text-align: center;
-        color: #6B7280;
-        font-size: 0.8rem;
-        margin-top: 3rem;
-    }
-    .stProgress > div > div > div > div {
-        height: 15px;
-    }
-    .notice-box {
-        background-color: #EFF6FF;
-        border: 1px solid #3B82F6;
+        word-break: break-all;
+    }}
+    
+    /* Risk indicator */
+    .risk-header {{
+        display: flex;
+        align-items: center;
+        margin-bottom: 1.2rem;
+    }}
+    
+    .risk-icon {{
+        font-size: 2rem;
+        margin-right: 0.8rem;
+    }}
+    
+    /* Feature list */
+    .feature-list {{
+        background-color: rgba(255,255,255,0.1);
         border-radius: 8px;
         padding: 1rem;
-        margin-bottom: 1rem;
-    }
-    .result-icon {
-        font-size: 2.5rem;
-        margin-bottom: 0.5rem;
-    }
-    .result-header {
-        display: flex;
-        align-items: center;
-        margin-bottom: 1rem;
-    }
-    .result-header h3 {
-        margin: 0 0 0 1rem;
-    }
-    .feature-list {
-        background-color: rgba(255,255,255,0.5);
-        padding: 0.8rem;
-        border-radius: 5px;
         margin: 1rem 0;
-    }
-    .feature-item {
-        margin-bottom: 0.3rem;
-    }
-    .emoji-icon {
-        font-size: 1.2rem;
-        margin-right: 0.5rem;
-    }
-    .input-label {
-        font-weight: 600;
-        font-size: 1.1rem;
+    }}
+    
+    .feature-item {{
         margin-bottom: 0.5rem;
+        padding-left: 1.5rem;
+        position: relative;
+    }}
+    
+    .feature-item:before {{
+        content: "•";
+        position: absolute;
+        left: 0.5rem;
+        color: var(--header-color);
+    }}
+    
+    /* History items */
+    .history-item {{
+        padding: 0.5rem;
+        border-radius: 4px;
+        margin-bottom: 0.5rem;
+        cursor: pointer;
+        transition: background-color 0.2s;
         display: flex;
         align-items: center;
-    }
-    .button-icon {
-        margin-right: 0.4rem;
-    }
+    }}
+    
+    .history-item:hover {{
+        background-color: rgba(255,255,255,0.1);
+    }}
+    
+    .history-icon {{
+        margin-right: 0.5rem;
+        font-size: 1rem;
+    }}
+    
+    .history-url {{
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        flex: 1;
+    }}
+    
+    .history-time {{
+        font-size: 0.7rem;
+        opacity: 0.7;
+        margin-left: 0.5rem;
+    }}
+    
+    /* Theme toggle */
+    .theme-toggle {{
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.5rem;
+        border-radius: 8px;
+        background-color: rgba(0,0,0,0.1);
+        margin-bottom: 1rem;
+    }}
+    
+    /* Example URL buttons */
+    .example-url {{
+        margin-bottom: 0.5rem;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }}
+    
+    .example-url:hover {{
+        transform: translateY(-2px);
+    }}
+    
+    /* Footer */
+    .footer {{
+        text-align: center;
+        color: var(--text-color);
+        opacity: 0.7;
+        font-size: 0.8rem;
+        margin-top: 3rem;
+        padding-top: 1rem;
+        border-top: 1px solid var(--border-color);
+    }}
+    
+    /* Input fields */
+    .stTextInput > div > div > input {{
+        background-color: var(--input-bg);
+        color: var(--text-color);
+    }}
+    
+    /* Progress bar */
+    .stProgress > div > div > div > div {{
+        height: 8px;
+        border-radius: 4px;
+    }}
+    
+    /* Mobile responsiveness */
+    @media (max-width: 768px) {{
+        .main-header {{
+            font-size: 1.8rem;
+        }}
+        
+        .sub-header {{
+            font-size: 1rem;
+        }}
+        
+        .result-container {{
+            padding: 1rem;
+        }}
+        
+        .url-display {{
+            font-size: 0.9rem;
+        }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 # App header
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    st_lottie(security_animation, height=150, key="security_anim")
+
 st.markdown('<p class="main-header">🛡️ Phishing URL Detector</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">🔎 Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
+
+# Sidebar with history and settings
+with st.sidebar:
+    st.markdown("### ⚙️ Settings")
+    
+    # Theme toggle
+    theme_col1, theme_col2 = st.columns([1, 3])
+    with theme_col1:
+        if st.session_state.dark_mode:
+            theme_emoji = "☀️"
+        else:
+            theme_emoji = "🌙"
+    with theme_col2:
+        if st.button(f"{theme_emoji} {'Light Mode' if st.session_state.dark_mode else 'Dark Mode'}", use_container_width=True):
+            st.session_state.dark_mode = not st.session_state.dark_mode
+            st.rerun()
+    
+    st.markdown("### 📋 URL History")
+    
+    if not st.session_state.url_history:
+        st.info("No URLs checked yet")
+    else:
+        for idx, (hist_url, timestamp, risk_level) in enumerate(st.session_state.url_history):
+            # Determine icon based on risk level
+            if risk_level < 20:
+                icon = "🟢"
+            elif risk_level < 70:
+                icon = "🟠"
+            else:
+                icon = "🔴"
+                
+            # Format time as readable
+            time_str = timestamp.strftime("%H:%M:%S")
+            
+            # Create clickable history item
+            if st.button(
+                f"{icon} {hist_url[:30]}{'...' if len(hist_url) > 30 else ''}",
+                key=f"hist_{idx}",
+                help=f"Risk: {risk_level:.1f}% - Checked at {time_str}"
+            ):
+                st.session_state.url_to_check = hist_url
+                st.rerun()
+        
+        if st.button("🗑️ Clear History", use_container_width=True):
+            st.session_state.url_history = []
+            st.rerun()
 
 def fallback_phishing_check(url):
     """
@@ -264,25 +483,22 @@ model, error_message, is_locale_error = load_model()
 
 # Show notice when using fallback mode
 if model is None:
-    st.markdown('<div class="notice-box">', unsafe_allow_html=True)
     st.warning("⚠️ Running in fallback mode: ML model could not be loaded")
-    st.markdown(f"""
-    {error_message}
+    st.info(f"{error_message}\n\nThe app will use a simplified rule-based analysis instead, which is less accurate but still helpful.")
+
+# URL input area
+url_col1, url_col2 = st.columns([3, 1])
+with url_col1:
+    # Use the stored URL if available
+    initial_url = st.session_state.get("url_to_check", "")
+    url = st.text_input("🔍 Enter URL to check:", value=initial_url, placeholder="https://example.com", label_visibility="collapsed")
     
-    The app will use a simplified rule-based analysis instead, which is less accurate but still helpful.
-    """)
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Clear the stored URL after using it
+    if "url_to_check" in st.session_state:
+        del st.session_state.url_to_check
 
-# URL input form
-st.markdown('<div class="input-label">🔍 Enter URL to check:</div>', unsafe_allow_html=True)
-url = st.text_input("", placeholder="https://example.com", label_visibility="collapsed")
-analyze_button = st.button("🚀 Analyze URL", use_container_width=True, type="primary")
-
-# Store or retrieve example URLs in session state
-if "url_to_check" in st.session_state:
-    url = st.session_state.url_to_check
-    del st.session_state.url_to_check
-    analyze_button = True
+with url_col2:
+    analyze_button = st.button("🚀 Analyze", use_container_width=True, type="primary")
 
 # Process URL when button is clicked
 if analyze_button:
@@ -293,72 +509,102 @@ if analyze_button:
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
         
+        # Create a container for the loading animation
+        loading_container = st.empty()
+        
+        with loading_container.container():
+            # Show Lottie animation during loading
+            st_lottie(loading_animation, height=200, key="loading")
+            st.text("Analyzing URL security... please wait")
+        
         # Use fallback method if model isn't available
         if model is None:
+            # Simulate analysis steps for better UX
+            time.sleep(0.8)
             phishing_probability, suspicious_features = fallback_phishing_check(url)
             using_fallback = True
         else:
             using_fallback = False
             suspicious_features = []
             try:
-                with st.spinner("🔍 Analyzing URL..."):
-                    # Simulate a brief loading time for better UX
-                    time.sleep(0.8)
-                    
-                    # Make prediction using joblib model
-                    prediction = model.predict_proba([url])
-                    phishing_probability = prediction[0][1] * 100  # Convert to percentage
-                    
-                    # If ML model predicts phishing, also run rule-based to get features
-                    if phishing_probability > 20:
-                        _, suspicious_features = fallback_phishing_check(url)
+                # Simulated loading with steps for better UX
+                time.sleep(0.8)
+                
+                # Make prediction using joblib model
+                prediction = model.predict_proba([url])
+                phishing_probability = prediction[0][1] * 100  # Convert to percentage
+                
+                # If ML model predicts phishing, also run rule-based to get features
+                if phishing_probability > 20:
+                    _, suspicious_features = fallback_phishing_check(url)
             except Exception as e:
                 st.error(f"Error analyzing URL: {str(e)}")
                 phishing_probability, suspicious_features = fallback_phishing_check(url)
                 using_fallback = True
         
+        # Clear the loading animation
+        loading_container.empty()
+        
+        # Add to history (avoid duplicates)
+        current_timestamp = datetime.datetime.now()
+        history_entry = (url, current_timestamp, phishing_probability)
+        
+        # Keep only unique URLs in history (up to 10)
+        existing_urls = [entry[0] for entry in st.session_state.url_history]
+        if url not in existing_urls:
+            st.session_state.url_history.insert(0, history_entry)
+            # Keep only the 10 most recent
+            if len(st.session_state.url_history) > 10:
+                st.session_state.url_history = st.session_state.url_history[:10]
+        
         # Determine risk level
         if phishing_probability < 20:
-            risk_class = "safe-url"
+            risk_class = "safe-result"
             risk_text = "Low Risk"
             risk_icon = "✅"
             emoji = "🛡️"
             message = "This URL appears to be legitimate based on our analysis."
         elif phishing_probability < 70:
-            risk_class = "warning-url"
+            risk_class = "warning-result"
             risk_text = "Moderate Risk"
             risk_icon = "⚠️"
             emoji = "🔔"
             message = "This URL shows some suspicious characteristics. Proceed with caution."
         else:
-            risk_class = "phishing-url"
+            risk_class = "phishing-result"
             risk_text = "High Risk"
             risk_icon = "❌"
             emoji = "🚨"
             message = "This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!"
         
-        # Display results
+        # Display results using Streamlit components instead of raw HTML
         result_container = st.container()
+        
         with result_container:
-            st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
+            # Create a styled container with the appropriate background
+            st.markdown(f'<div class="result-container {risk_class}">', unsafe_allow_html=True)
             
             # URL display
-            st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="url-display">{url}</div>', unsafe_allow_html=True)
             
-            # Header with icon
-            st.markdown(f'<div class="result-header"><span class="result-icon">{emoji} {risk_icon}</span><h3>{risk_text}</h3></div>', unsafe_allow_html=True)
+            # Risk header
+            st.markdown(f'<div class="risk-header">' +
+                      f'<span class="risk-icon">{emoji} {risk_icon}</span>' +
+                      f'<h2>{risk_text}</h2>' +
+                      f'</div>', unsafe_allow_html=True)
             
             # Warning about fallback mode
             if using_fallback:
                 st.info("⚠️ Using simplified analysis - model unavailable. Results may be less accurate.")
             
-            # Progress bar and percentage
+            # Progress bar with clean styling
             st.progress(phishing_probability/100)
-            st.markdown(f"**Phishing Probability: {phishing_probability:.1f}%**")
+            st.markdown(f"### Phishing Probability: {phishing_probability:.1f}%")
             
             # Suspicious features (if any)
             if suspicious_features and (phishing_probability >= 20):
                 st.markdown("### 🔍 Suspicious features detected:")
+                
                 st.markdown('<div class="feature-list">', unsafe_allow_html=True)
                 for feature in suspicious_features:
                     st.markdown(f'<div class="feature-item">{feature}</div>', unsafe_allow_html=True)
@@ -366,11 +612,10 @@ if analyze_button:
             
             # Risk message
             st.markdown(f"### {emoji} {message}")
-                
+            
             st.markdown('</div>', unsafe_allow_html=True)
 
 # Example URLs section
-st.markdown("---")
 st.markdown("### 🧪 Try Example URLs")
 col1, col2 = st.columns(2)
 with col1:
@@ -381,7 +626,7 @@ with col1:
         "https://www.youtube.com"
     ]
     for ex in examples_safe:
-        if st.button(f"🔗 {ex}", key=f"safe_{ex}", use_container_width=True):
+        if st.button(f"🔗 {ex.split('//')[1][:20]}...", key=f"safe_{ex}", use_container_width=True):
             st.session_state.url_to_check = ex
             st.rerun()
 
@@ -393,7 +638,7 @@ with col2:
         "http://verify-account.net/signin"
     ]
     for ex in examples_phishing:
-        if st.button(f"🔗 {ex}", key=f"phish_{ex}", use_container_width=True):
+        if st.button(f"🔗 {ex.split('//')[1][:20]}...", key=f"phish_{ex}", use_container_width=True):
             st.session_state.url_to_check = ex
             st.rerun()
 

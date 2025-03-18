@@ -3,3 +3,4 @@ numpy
 huggingface_hub
 joblib
 scikit-learn
+streamlit-lottie
