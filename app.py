@@ -7,7 +7,6 @@ import re
 import joblib
 from urllib.parse import urlparse
 import datetime
-from streamlit_lottie import st_lottie
 import requests
 
 # Page configuration
@@ -23,17 +22,6 @@ if "dark_mode" not in st.session_state:
 
 if "url_history" not in st.session_state:
     st.session_state.url_history = []
-
-# Function to load Lottie animations
-def load_lottieurl(url: str):
-    r = requests.get(url)
-    if r.status_code != 200:
-        return None
-    return r.json()
-
-# Load animations
-security_animation = load_lottieurl("https://assets10.lottiefiles.com/packages/lf20_q4h3z8lq.json")
-loading_animation = load_lottieurl("https://assets7.lottiefiles.com/packages/lf20_p8bfn5to.json")
 
 # Get dark/light mode styles
 def get_theme_css():
@@ -273,15 +261,61 @@ st.markdown(f"""
             font-size: 0.9rem;
         }}
     }}
+    
+    /* Header animation */
+    .shield-animation {{
+        font-size: 5rem;
+        text-align: center;
+        animation: pulse 2s infinite;
+    }}
+    
+    @keyframes pulse {{
+        0% {{ transform: scale(1); }}
+        50% {{ transform: scale(1.1); }}
+        100% {{ transform: scale(1); }}
+    }}
+    
+    /* Loading animation */
+    .loading-animation {{
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+    }}
+    
+    .loading-dots {{
+        display: flex;
+        margin-top: 1rem;
+    }}
+    
+    .dot {{
+        width: 12px;
+        height: 12px;
+        margin: 0 5px;
+        border-radius: 50%;
+        background-color: var(--header-color);
+        animation: bounce 1.5s infinite;
+    }}
+    
+    .dot:nth-child(2) {{
+        animation-delay: 0.2s;
+    }}
+    
+    .dot:nth-child(3) {{
+        animation-delay: 0.4s;
+    }}
+    
+    @keyframes bounce {{
+        0%, 100% {{ transform: translateY(0); }}
+        50% {{ transform: translateY(-10px); }}
+    }}
 </style>
 """, unsafe_allow_html=True)
 
 # App header
-col1, col2, col3 = st.columns([1, 2, 1])
-with col2:
-    st_lottie(security_animation, height=150, key="security_anim")
-
-st.markdown('<p class="main-header">🛡️ Phishing URL Detector</p>', unsafe_allow_html=True)
+# Using CSS animations instead of Lottie for greater compatibility
+st.markdown('<div class="shield-animation">🛡️</div>', unsafe_allow_html=True)
+st.markdown('<p class="main-header">Phishing URL Detector</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">🔎 Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
 
 # Sidebar with history and settings
@@ -513,9 +547,18 @@ if analyze_button:
         loading_container = st.empty()
         
         with loading_container.container():
-            # Show Lottie animation during loading
-            st_lottie(loading_animation, height=200, key="loading")
-            st.text("Analyzing URL security... please wait")
+            # Show custom CSS loading animation
+            st.markdown("""
+            <div class="loading-animation">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🔍</div>
+                <div>Analyzing URL security... please wait</div>
+                <div class="loading-dots">
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                    <div class="dot"></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
         
         # Use fallback method if model isn't available
         if model is None:
