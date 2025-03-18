@@ -3,6 +3,9 @@ import numpy as np
 import onnxruntime
 from huggingface_hub import hf_hub_download
 import time
+import os
+import re
+from urllib.parse import urlparse
 
 # Page configuration
 st.set_page_config(
@@ -59,6 +62,13 @@ st.markdown("""
     .stProgress > div > div > div > div {
         height: 15px;
     }
+    .notice-box {
+        background-color: #EFF6FF;
+        border: 1px solid #3B82F6;
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -66,11 +76,69 @@ st.markdown("""
 st.markdown('<p class="main-header">🛡️ Phishing URL Detector</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
 
+def fallback_phishing_check(url):
+    """
+    A simple fallback method to check for phishing signs when the model is unavailable.
+    This is NOT a replacement for ML but provides some basic checks.
+    """
+    url = url.lower()
+    parsed_url = urlparse(url)
+    domain = parsed_url.netloc
+    
+    # List of suspicious terms often found in phishing URLs
+    suspicious_terms = [
+        'secure', 'account', 'banking', 'login', 'signin', 'verify', 
+        'authenticate', 'update', 'confirm', 'paypal', 'password',
+        'credential', 'wallet', 'alert', 'limited', 'suspended'
+    ]
+    
+    # Check for IP address as domain
+    ip_pattern = re.compile(r'\d+\.\d+\.\d+\.\d+')
+    has_ip_domain = bool(ip_pattern.match(domain))
+    
+    # Check for suspicious terms in URL
+    term_count = sum(1 for term in suspicious_terms if term in url)
+    
+    # Check for excessive subdomains
+    subdomain_count = len(domain.split('.')) - 2
+    if subdomain_count < 0:
+        subdomain_count = 0
+    
+    # Check for URL length (phishing URLs tend to be longer)
+    url_length = len(url)
+    
+    # Check for presence of @ symbol in URL (often used in phishing)
+    has_at_symbol = '@' in url
+    
+    # Check for URL shortener services
+    shortener_services = ['bit.ly', 'tinyurl', 'goo.gl', 't.co', 'is.gd', 'cli.gs', 'ow.ly']
+    is_shortened = any(service in domain for service in shortener_services)
+    
+    # Calculate simple risk score (higher is more risky)
+    risk_score = 0
+    
+    risk_score += term_count * 5  # Each suspicious term adds 5 points
+    risk_score += 20 if has_ip_domain else 0  # IP as domain adds 20 points
+    risk_score += subdomain_count * 5  # Each subdomain level adds 5 points
+    risk_score += 15 if has_at_symbol else 0  # @ symbol adds 15 points
+    risk_score += 15 if is_shortened else 0  # URL shortener adds 15 points
+    risk_score += min(url_length // 20, 10)  # URL length (max 10 points)
+    
+    # Normalize to a percentage (0-100)
+    risk_percentage = min(risk_score, 100)
+    
+    return risk_percentage, "⚠️ Using simplified analysis - model unavailable. Results may be less accurate."
+
 @st.cache_resource
 def load_model():
     """Load the ONNX model from HuggingFace Hub (cached for performance)"""
     REPO_ID = "pirocheto/phishing-url-detection"
     FILENAME = "model.onnx"
+    
+    # Try to set locale via environment variables (may not work on Streamlit Cloud)
+    os.environ["LANG"] = "en_US.UTF-8"
+    os.environ["LC_ALL"] = "en_US.UTF-8"
+    
     try:
         model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
         # Initialize ONNX Runtime session
@@ -78,13 +146,34 @@ def load_model():
             model_path,
             providers=["CPUExecutionProvider"],
         )
-        return session
+        return session, None, False
     except Exception as e:
-        st.error(f"Error loading model: {str(e)}")
-        return None
+        error_msg = str(e)
+        # Check if it's a locale error
+        if "locale" in error_msg.lower():
+            return None, f"Locale configuration error: {error_msg}", True
+        return None, f"Error loading model: {error_msg}", False
 
 # Load the model
-model = load_model()
+model, error_message, is_locale_error = load_model()
+
+# Show notice when using fallback mode
+if model is None:
+    st.markdown('<div class="notice-box">', unsafe_allow_html=True)
+    st.warning("⚠️ Running in fallback mode: ML model could not be loaded")
+    st.markdown("""
+    The advanced ML model requires system locale configuration that isn't available in this environment.
+    The app will use a simplified rule-based analysis instead, which is less accurate but still helpful.
+    
+    **For developers:** If running locally, install the required locale with:
+    ```
+    sudo apt-get update
+    sudo apt-get install -y locales
+    sudo locale-gen en_US.UTF-8
+    export LANG=en_US.UTF-8
+    ```
+    """)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # URL input form
 with st.form(key="url_form"):
@@ -107,11 +196,13 @@ if submit_button:
         # Add http:// prefix if missing
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
-            
-        # Check if model loaded properly
+        
+        # Use fallback method if model isn't available
         if model is None:
-            st.error("Model failed to load. Please check if the locale environment is properly configured.")
+            phishing_probability, fallback_message = fallback_phishing_check(url)
+            using_fallback = True
         else:
+            using_fallback = False
             try:
                 with st.spinner("Analyzing URL..."):
                     # Simulate a brief loading time for better UX
@@ -121,36 +212,41 @@ if submit_button:
                     inputs = np.array([url], dtype="str")
                     results = model.run(None, {"inputs": inputs})[1]
                     phishing_probability = results[0][1] * 100  # Convert to percentage
-                    
-                    # Determine risk level
-                    if phishing_probability < 20:
-                        risk_class = "safe-url"
-                        risk_text = "Low Risk ✅"
-                    elif phishing_probability < 70:
-                        risk_class = "warning-url"
-                        risk_text = "Moderate Risk ⚠️"
-                    else:
-                        risk_class = "phishing-url"
-                        risk_text = "High Risk ❌"
-                    
-                    # Display results
-                    st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
-                    st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
-                    st.markdown(f'### {risk_text}')
-                    st.progress(phishing_probability/100)
-                    st.markdown(f"### Phishing Probability: {phishing_probability:.2f}%")
-                    
-                    if risk_class == "phishing-url":
-                        st.warning("This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!")
-                    elif risk_class == "warning-url":
-                        st.info("This URL shows some suspicious characteristics. Proceed with caution.")
-                    else:
-                        st.success("This URL appears to be legitimate based on our analysis.")
-                        
-                    st.markdown('</div>', unsafe_allow_html=True)
-                    
             except Exception as e:
                 st.error(f"Error analyzing URL: {str(e)}")
+                phishing_probability, fallback_message = fallback_phishing_check(url)
+                using_fallback = True
+        
+        # Determine risk level
+        if phishing_probability < 20:
+            risk_class = "safe-url"
+            risk_text = "Low Risk ✅"
+        elif phishing_probability < 70:
+            risk_class = "warning-url"
+            risk_text = "Moderate Risk ⚠️"
+        else:
+            risk_class = "phishing-url"
+            risk_text = "High Risk ❌"
+        
+        # Display results
+        st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
+        st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
+        st.markdown(f'### {risk_text}')
+        
+        if using_fallback:
+            st.info(fallback_message)
+            
+        st.progress(phishing_probability/100)
+        st.markdown(f"### Phishing Probability: {phishing_probability:.2f}%")
+        
+        if risk_class == "phishing-url":
+            st.warning("This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!")
+        elif risk_class == "warning-url":
+            st.info("This URL shows some suspicious characteristics. Proceed with caution.")
+        else:
+            st.success("This URL appears to be legitimate based on our analysis.")
+            
+        st.markdown('</div>', unsafe_allow_html=True)
 
 # Example URLs section
 with st.expander("Try example URLs"):
