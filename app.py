@@ -88,10 +88,16 @@ model = load_model()
 
 # URL input form
 with st.form(key="url_form"):
-    url = st.text_input("Enter URL to check:", placeholder="https://example.com")
+    # Use the stored URL if available
+    initial_url = st.session_state.get("url_to_check", "")
+    url = st.text_input("Enter URL to check:", value=initial_url, placeholder="https://example.com")
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
         submit_button = st.form_submit_button(label="Analyze URL", use_container_width=True)
+    
+    # Clear the stored URL after using it
+    if "url_to_check" in st.session_state:
+        del st.session_state.url_to_check
 
 # Process URL when form is submitted
 if submit_button:
@@ -102,45 +108,49 @@ if submit_button:
         if not url.startswith(('http://', 'https://')):
             url = 'http://' + url
             
-        try:
-            with st.spinner("Analyzing URL..."):
-                # Simulate a brief loading time for better UX
-                time.sleep(0.8)
-                
-                # Make prediction
-                inputs = np.array([url], dtype="str")
-                results = model.run(None, {"inputs": inputs})[1]
-                phishing_probability = results[0][1] * 100  # Convert to percentage
-                
-                # Determine risk level
-                if phishing_probability < 20:
-                    risk_class = "safe-url"
-                    risk_text = "Low Risk ✅"
-                elif phishing_probability < 70:
-                    risk_class = "warning-url"
-                    risk_text = "Moderate Risk ⚠️"
-                else:
-                    risk_class = "phishing-url"
-                    risk_text = "High Risk ❌"
-                
-                # Display results
-                st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
-                st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
-                st.markdown(f'### {risk_text}')
-                st.progress(phishing_probability/100)
-                st.markdown(f"### Phishing Probability: {phishing_probability:.2f}%")
-                
-                if risk_class == "phishing-url":
-                    st.warning("This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!")
-                elif risk_class == "warning-url":
-                    st.info("This URL shows some suspicious characteristics. Proceed with caution.")
-                else:
-                    st.success("This URL appears to be legitimate based on our analysis.")
+        # Check if model loaded properly
+        if model is None:
+            st.error("Model failed to load. Please check if the locale environment is properly configured.")
+        else:
+            try:
+                with st.spinner("Analyzing URL..."):
+                    # Simulate a brief loading time for better UX
+                    time.sleep(0.8)
                     
-                st.markdown('</div>', unsafe_allow_html=True)
-                
-        except Exception as e:
-            st.error(f"Error analyzing URL: {str(e)}")
+                    # Make prediction
+                    inputs = np.array([url], dtype="str")
+                    results = model.run(None, {"inputs": inputs})[1]
+                    phishing_probability = results[0][1] * 100  # Convert to percentage
+                    
+                    # Determine risk level
+                    if phishing_probability < 20:
+                        risk_class = "safe-url"
+                        risk_text = "Low Risk ✅"
+                    elif phishing_probability < 70:
+                        risk_class = "warning-url"
+                        risk_text = "Moderate Risk ⚠️"
+                    else:
+                        risk_class = "phishing-url"
+                        risk_text = "High Risk ❌"
+                    
+                    # Display results
+                    st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
+                    st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
+                    st.markdown(f'### {risk_text}')
+                    st.progress(phishing_probability/100)
+                    st.markdown(f"### Phishing Probability: {phishing_probability:.2f}%")
+                    
+                    if risk_class == "phishing-url":
+                        st.warning("This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!")
+                    elif risk_class == "warning-url":
+                        st.info("This URL shows some suspicious characteristics. Proceed with caution.")
+                    else:
+                        st.success("This URL appears to be legitimate based on our analysis.")
+                        
+                    st.markdown('</div>', unsafe_allow_html=True)
+                    
+            except Exception as e:
+                st.error(f"Error analyzing URL: {str(e)}")
 
 # Example URLs section
 with st.expander("Try example URLs"):
@@ -155,7 +165,7 @@ with st.expander("Try example URLs"):
         for ex in examples_safe:
             if st.button(ex, key=f"safe_{ex}"):
                 st.session_state.url_to_check = ex
-                st.experimental_rerun()
+                st.rerun()
     
     with col2:
         st.markdown("**Likely Phishing:**")
@@ -167,7 +177,7 @@ with st.expander("Try example URLs"):
         for ex in examples_phishing:
             if st.button(ex, key=f"phish_{ex}"):
                 st.session_state.url_to_check = ex
-                st.experimental_rerun()
+                st.rerun()
 
 # Information section
 with st.expander("About this tool"):
