@@ -15,7 +15,7 @@ st.set_page_config(
     layout="centered"
 )
 
-# Initialize session state for URL history (removing dark mode since Streamlit has built-in dark mode)
+# Initialize session state for URL history
 if "url_history" not in st.session_state:
     st.session_state.url_history = []
 
@@ -367,8 +367,17 @@ if model is None:
 # URL input area
 url_col1, url_col2 = st.columns([3, 1])
 with url_col1:
+    # Check if we need to pre-populate from an example
+    if "example_url" in st.session_state:
+        initial_url = st.session_state["example_url"]
+        del st.session_state["example_url"]
+    elif url_to_analyze:
+        initial_url = url_to_analyze
+    else:
+        initial_url = ""
+        
     input_url = st.text_input("🔍 Enter URL to check:", 
-                             value=url_to_analyze if url_to_analyze else "", 
+                             value=initial_url, 
                              placeholder="https://example.com", 
                              label_visibility="collapsed")
 
@@ -502,36 +511,38 @@ if analyze_button and input_url:
 elif url_to_analyze:
     analyze_url(url_to_analyze)
 
-# Example URLs section
-st.markdown("### 🧪 Try Example URLs")
-col1, col2 = st.columns(2)
-with col1:
-    st.markdown("**🟢 Likely Safe:**")
-    examples_safe = [
-        "http://www.medicalnewstoday.com/articles/188939.php",
-        "https://github.com",
-        "https://www.youtube.com"
-    ]
-    
-    # Use direct analyze_url call instead of session state
-    for i, ex in enumerate(examples_safe):
-        display_url = ex.split('//')[1][:20]
-        if st.button(f"🔗 {display_url}...", key=f"safe_{i}", use_container_width=True):
-            analyze_url(ex)
+# Example URLs section in expander
+with st.expander("🧪 Try Example URLs"):
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**🟢 Likely Safe:**")
+        examples_safe = [
+            "http://www.medicalnewstoday.com/articles/188939.php",
+            "https://github.com",
+            "https://www.youtube.com"
+        ]
+        
+        # Set example URL to input field when clicked
+        for i, ex in enumerate(examples_safe):
+            display_url = ex.split('//')[1][:20]
+            if st.button(f"🔗 {display_url}...", key=f"safe_{i}", use_container_width=True):
+                st.session_state["example_url"] = ex
+                st.rerun()
 
-with col2:
-    st.markdown("**🔴 Likely Phishing:**")
-    examples_phishing = [
-        "http://clubedemilhagem.com/home.php",
-        "http://login-paypal.com.secure-checkout.info", 
-        "http://verify-account.net/signin"
-    ]
-    
-    # Use direct analyze_url call instead of session state
-    for i, ex in enumerate(examples_phishing):
-        display_url = ex.split('//')[1][:20]
-        if st.button(f"🔗 {display_url}...", key=f"phish_{i}", use_container_width=True):
-            analyze_url(ex)
+    with col2:
+        st.markdown("**🔴 Likely Phishing:**")
+        examples_phishing = [
+            "http://clubedemilhagem.com/home.php",
+            "http://login-paypal.com.secure-checkout.info", 
+            "http://verify-account.net/signin"
+        ]
+        
+        # Set example URL to input field when clicked
+        for i, ex in enumerate(examples_phishing):
+            display_url = ex.split('//')[1][:20]
+            if st.button(f"🔗 {display_url}...", key=f"phish_{i}", use_container_width=True):
+                st.session_state["example_url"] = ex
+                st.rerun()
 
 # Information section
 with st.expander("ℹ️ About this tool"):
@@ -551,4 +562,4 @@ with st.expander("ℹ️ About this tool"):
     Always exercise caution when visiting unfamiliar websites or clicking on links from unknown sources.
     """)
 
-st.markdown('<div class="footer">Created with ❤️ using Streamlit and Hugging Face models</div>', unsafe_allow_html=True)
+st.markdown('<div class="footer">Created with ❤️ by Kaustubh Somani using Streamlit</div>', unsafe_allow_html=True)
