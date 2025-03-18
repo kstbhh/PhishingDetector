@@ -2,3 +2,4 @@ streamlit
 numpy
 onnxruntime
 huggingface_hub
+joblib

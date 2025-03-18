@@ -1,10 +1,10 @@
 import streamlit as st
 import numpy as np
-import onnxruntime
 from huggingface_hub import hf_hub_download
 import time
 import os
 import re
+import joblib
 from urllib.parse import urlparse
 
 # Page configuration
@@ -131,27 +131,17 @@ def fallback_phishing_check(url):
 
 @st.cache_resource
 def load_model():
-    """Load the ONNX model from HuggingFace Hub (cached for performance)"""
+    """Load the ML model from HuggingFace Hub (cached for performance)"""
     REPO_ID = "pirocheto/phishing-url-detection"
-    FILENAME = "model.onnx"
-    
-    # Try to set locale via environment variables (may not work on Streamlit Cloud)
-    os.environ["LANG"] = "en_US.UTF-8"
-    os.environ["LC_ALL"] = "en_US.UTF-8"
+    FILENAME = "model.pkl"
     
     try:
         model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
-        # Initialize ONNX Runtime session
-        session = onnxruntime.InferenceSession(
-            model_path,
-            providers=["CPUExecutionProvider"],
-        )
-        return session, None, False
+        # Load the model using joblib
+        model = joblib.load(model_path)
+        return model, None, False
     except Exception as e:
         error_msg = str(e)
-        # Check if it's a locale error
-        if "locale" in error_msg.lower():
-            return None, f"Locale configuration error: {error_msg}", True
         return None, f"Error loading model: {error_msg}", False
 
 # Load the model
@@ -161,17 +151,10 @@ model, error_message, is_locale_error = load_model()
 if model is None:
     st.markdown('<div class="notice-box">', unsafe_allow_html=True)
     st.warning("⚠️ Running in fallback mode: ML model could not be loaded")
-    st.markdown("""
-    The advanced ML model requires system locale configuration that isn't available in this environment.
-    The app will use a simplified rule-based analysis instead, which is less accurate but still helpful.
+    st.markdown(f"""
+    {error_message}
     
-    **For developers:** If running locally, install the required locale with:
-    ```
-    sudo apt-get update
-    sudo apt-get install -y locales
-    sudo locale-gen en_US.UTF-8
-    export LANG=en_US.UTF-8
-    ```
+    The app will use a simplified rule-based analysis instead, which is less accurate but still helpful.
     """)
     st.markdown('</div>', unsafe_allow_html=True)
 
@@ -208,10 +191,9 @@ if submit_button:
                     # Simulate a brief loading time for better UX
                     time.sleep(0.8)
                     
-                    # Make prediction
-                    inputs = np.array([url], dtype="str")
-                    results = model.run(None, {"inputs": inputs})[1]
-                    phishing_probability = results[0][1] * 100  # Convert to percentage
+                    # Make prediction using joblib model
+                    prediction = model.predict_proba([url])
+                    phishing_probability = prediction[0][1] * 100  # Convert to percentage
             except Exception as e:
                 st.error(f"Error analyzing URL: {str(e)}")
                 phishing_probability, fallback_message = fallback_phishing_check(url)
