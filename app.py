@@ -90,12 +90,26 @@ st.markdown("""
     .feature-item {
         margin-bottom: 0.3rem;
     }
+    .emoji-icon {
+        font-size: 1.2rem;
+        margin-right: 0.5rem;
+    }
+    .input-label {
+        font-weight: 600;
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+        display: flex;
+        align-items: center;
+    }
+    .button-icon {
+        margin-right: 0.4rem;
+    }
 </style>
 """, unsafe_allow_html=True)
 
 # App header
 st.markdown('<p class="main-header">🛡️ Phishing URL Detector</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-header">Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">🔎 Enter a URL to check if it might be a phishing attempt</p>', unsafe_allow_html=True)
 
 def fallback_phishing_check(url):
     """
@@ -201,26 +215,26 @@ def fallback_phishing_check(url):
     # Collect suspicious features for display
     suspicious_features = []
     if has_ip_domain:
-        suspicious_features.append("Uses IP address instead of domain name")
+        suspicious_features.append("🔢 Uses IP address instead of domain name")
     if brand_impersonation and impersonated_brand:
-        suspicious_features.append(f"Potential impersonation of {impersonated_brand.capitalize()}")
+        suspicious_features.append(f"🎭 Potential impersonation of {impersonated_brand.capitalize()}")
     if has_suspicious_tld:
-        suspicious_features.append(f"Suspicious top-level domain (.{domain_parts[-1]})")
+        suspicious_features.append(f"🔍 Suspicious top-level domain (.{domain_parts[-1]})")
     if has_at_symbol:
-        suspicious_features.append("Contains @ symbol in URL (often used to obscure true destination)")
+        suspicious_features.append("📧 Contains @ symbol in URL (often used to obscure true destination)")
     if is_shortened:
-        suspicious_features.append("Uses URL shortener service (hides true destination)")
+        suspicious_features.append("🔗 Uses URL shortener service (hides true destination)")
     if found_terms:
         if len(found_terms) > 2:
-            suspicious_features.append(f"Contains suspicious terms: {', '.join(found_terms[:2])} and others")
+            suspicious_features.append(f"⚠️ Contains suspicious terms: {', '.join(found_terms[:2])} and others")
         else:
-            suspicious_features.append(f"Contains suspicious terms: {', '.join(found_terms)}")
+            suspicious_features.append(f"⚠️ Contains suspicious terms: {', '.join(found_terms)}")
     if 'scam' in domain:
-        suspicious_features.append("Domain contains the word 'scam'")
+        suspicious_features.append("🚨 Domain contains the word 'scam'")
     if subdomain_count > 2:
-        suspicious_features.append(f"Excessive subdomains ({subdomain_count})")
+        suspicious_features.append(f"🔀 Excessive subdomains ({subdomain_count})")
     if has_unusual_port:
-        suspicious_features.append("Uses unusual network port")
+        suspicious_features.append("🚪 Uses unusual network port")
     
     return risk_percentage, suspicious_features
 
@@ -260,22 +274,20 @@ if model is None:
     st.markdown('</div>', unsafe_allow_html=True)
 
 # URL input form
-with st.form(key="url_form"):
-    # Use the stored URL if available
-    initial_url = st.session_state.get("url_to_check", "")
-    url = st.text_input("Enter URL to check:", value=initial_url, placeholder="https://example.com")
-    col1, col2, col3 = st.columns([1, 1, 1])
-    with col2:
-        submit_button = st.form_submit_button(label="Analyze URL", use_container_width=True)
-    
-    # Clear the stored URL after using it
-    if "url_to_check" in st.session_state:
-        del st.session_state.url_to_check
+st.markdown('<div class="input-label">🔍 Enter URL to check:</div>', unsafe_allow_html=True)
+url = st.text_input("", placeholder="https://example.com", label_visibility="collapsed")
+analyze_button = st.button("🚀 Analyze URL", use_container_width=True, type="primary")
 
-# Process URL when form is submitted
-if submit_button:
+# Store or retrieve example URLs in session state
+if "url_to_check" in st.session_state:
+    url = st.session_state.url_to_check
+    del st.session_state.url_to_check
+    analyze_button = True
+
+# Process URL when button is clicked
+if analyze_button:
     if not url:
-        st.warning("Please enter a URL to analyze")
+        st.warning("⚠️ Please enter a URL to analyze")
     else:
         # Add http:// prefix if missing
         if not url.startswith(('http://', 'https://')):
@@ -289,7 +301,7 @@ if submit_button:
             using_fallback = False
             suspicious_features = []
             try:
-                with st.spinner("Analyzing URL..."):
+                with st.spinner("🔍 Analyzing URL..."):
                     # Simulate a brief loading time for better UX
                     time.sleep(0.8)
                     
@@ -310,86 +322,96 @@ if submit_button:
             risk_class = "safe-url"
             risk_text = "Low Risk"
             risk_icon = "✅"
+            emoji = "🛡️"
             message = "This URL appears to be legitimate based on our analysis."
         elif phishing_probability < 70:
             risk_class = "warning-url"
             risk_text = "Moderate Risk"
             risk_icon = "⚠️"
+            emoji = "🔔"
             message = "This URL shows some suspicious characteristics. Proceed with caution."
         else:
             risk_class = "phishing-url"
             risk_text = "High Risk"
             risk_icon = "❌"
+            emoji = "🚨"
             message = "This URL shows strong characteristics of a phishing attempt. Exercise extreme caution!"
         
         # Display results
-        st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
-        
-        # URL display
-        st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
-        
-        # Header with icon
-        st.markdown(f'<div class="result-header"><span class="result-icon">{risk_icon}</span><h3>{risk_text}</h3></div>', unsafe_allow_html=True)
-        
-        # Warning about fallback mode
-        if using_fallback:
-            st.info("⚠️ Using simplified analysis - model unavailable. Results may be less accurate.")
-        
-        # Progress bar and percentage
-        st.progress(phishing_probability/100)
-        st.markdown(f"**Phishing Probability: {phishing_probability:.1f}%**")
-        
-        # Suspicious features (if any)
-        if suspicious_features and (phishing_probability >= 20):
-            st.markdown("### Suspicious features detected:")
-            st.markdown('<div class="feature-list">', unsafe_allow_html=True)
-            for feature in suspicious_features:
-                st.markdown(f'<div class="feature-item">• {feature}</div>', unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
-        
-        # Risk message
-        st.markdown(f"### {message}")
+        result_container = st.container()
+        with result_container:
+            st.markdown(f'<div class="result-box {risk_class}">', unsafe_allow_html=True)
             
-        st.markdown('</div>', unsafe_allow_html=True)
+            # URL display
+            st.markdown(f'<div class="url-text">{url}</div>', unsafe_allow_html=True)
+            
+            # Header with icon
+            st.markdown(f'<div class="result-header"><span class="result-icon">{emoji} {risk_icon}</span><h3>{risk_text}</h3></div>', unsafe_allow_html=True)
+            
+            # Warning about fallback mode
+            if using_fallback:
+                st.info("⚠️ Using simplified analysis - model unavailable. Results may be less accurate.")
+            
+            # Progress bar and percentage
+            st.progress(phishing_probability/100)
+            st.markdown(f"**Phishing Probability: {phishing_probability:.1f}%**")
+            
+            # Suspicious features (if any)
+            if suspicious_features and (phishing_probability >= 20):
+                st.markdown("### 🔍 Suspicious features detected:")
+                st.markdown('<div class="feature-list">', unsafe_allow_html=True)
+                for feature in suspicious_features:
+                    st.markdown(f'<div class="feature-item">{feature}</div>', unsafe_allow_html=True)
+                st.markdown('</div>', unsafe_allow_html=True)
+            
+            # Risk message
+            st.markdown(f"### {emoji} {message}")
+                
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # Example URLs section
-with st.expander("Try example URLs"):
-    col1, col2 = st.columns(2)
-    with col1:
-        st.markdown("**Likely Safe:**")
-        examples_safe = [
-            "http://www.medicalnewstoday.com/articles/188939.php",
-            "https://github.com",
-            "https://www.youtube.com"
-        ]
-        for ex in examples_safe:
-            if st.button(ex, key=f"safe_{ex}"):
-                st.session_state.url_to_check = ex
-                st.rerun()
-    
-    with col2:
-        st.markdown("**Likely Phishing:**")
-        examples_phishing = [
-            "https://clubedemilhagem.com/home.php",
-            "http://login-paypal.com.secure-checkout.info",
-            "http://verify-account.net/signin"
-        ]
-        for ex in examples_phishing:
-            if st.button(ex, key=f"phish_{ex}"):
-                st.session_state.url_to_check = ex
-                st.rerun()
+st.markdown("---")
+st.markdown("### 🧪 Try Example URLs")
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("**🟢 Likely Safe:**")
+    examples_safe = [
+        "http://www.medicalnewstoday.com/articles/188939.php",
+        "https://github.com",
+        "https://www.youtube.com"
+    ]
+    for ex in examples_safe:
+        if st.button(f"🔗 {ex}", key=f"safe_{ex}", use_container_width=True):
+            st.session_state.url_to_check = ex
+            st.rerun()
+
+with col2:
+    st.markdown("**🔴 Likely Phishing:**")
+    examples_phishing = [
+        "http://clubedemilhagem.com/home.php",
+        "http://login-paypal.com.secure-checkout.info",
+        "http://verify-account.net/signin"
+    ]
+    for ex in examples_phishing:
+        if st.button(f"🔗 {ex}", key=f"phish_{ex}", use_container_width=True):
+            st.session_state.url_to_check = ex
+            st.rerun()
 
 # Information section
-with st.expander("About this tool"):
+with st.expander("ℹ️ About this tool"):
     st.markdown("""
-    This tool uses a machine learning model trained to detect phishing URLs based on various features.
+    ### 🔍 How it works
     
-    **How it works:**
-    - The model analyzes URL patterns, domain information, and other characteristics
-    - It then calculates the probability that the URL is a phishing attempt
-    - Higher percentages indicate higher likelihood of being a phishing site
+    This tool uses a machine learning model trained to detect phishing URLs based on various features:
     
-    **Disclaimer:** While this tool can help identify many phishing attempts, it is not 100% accurate. 
+    - 🔍 Analyzes URL patterns and domain information
+    - 🧠 Uses AI to identify suspicious characteristics
+    - 📊 Calculates the probability that a URL is a phishing attempt
+    - 💡 Highlights specific suspicious features when detected
+    
+    ### ⚠️ Disclaimer
+    
+    While this tool can help identify many phishing attempts, it is not 100% accurate. 
     Always exercise caution when visiting unfamiliar websites or clicking on links from unknown sources.
     """)
 
