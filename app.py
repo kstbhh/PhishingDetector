@@ -85,11 +85,29 @@ def fallback_phishing_check(url):
     parsed_url = urlparse(url)
     domain = parsed_url.netloc
     
+    # If domain is empty (user might have entered just a domain name without http://)
+    if not domain and '.' in url:
+        domain = url
+    
     # List of suspicious terms often found in phishing URLs
     suspicious_terms = [
         'secure', 'account', 'banking', 'login', 'signin', 'verify', 
         'authenticate', 'update', 'confirm', 'paypal', 'password',
-        'credential', 'wallet', 'alert', 'limited', 'suspended'
+        'credential', 'wallet', 'alert', 'limited', 'suspended',
+        'scam', 'hack', 'free', 'prize', 'winner', 'access', 'verify'
+    ]
+    
+    # List of popular brands often impersonated in phishing
+    impersonated_brands = [
+        'paypal', 'apple', 'microsoft', 'amazon', 'google', 'facebook', 
+        'instagram', 'netflix', 'bank', 'chase', 'wells', 'citi', 
+        'amex', 'mastercard', 'visa', 'twitter', 'linkedin', 'dropbox'
+    ]
+    
+    # Suspicious TLDs
+    suspicious_tlds = [
+        'xyz', 'top', 'club', 'online', 'site', 'info', 'biz', 'gq', 
+        'ml', 'cf', 'tk', 'ga', 'stream', 'loan', 'date'
     ]
     
     # Check for IP address as domain
@@ -98,6 +116,20 @@ def fallback_phishing_check(url):
     
     # Check for suspicious terms in URL
     term_count = sum(1 for term in suspicious_terms if term in url)
+    
+    # Check if domain contains a brand name but isn't the official domain
+    brand_impersonation = False
+    for brand in impersonated_brands:
+        # Check if brand name is in the domain but it's not the main domain
+        if brand in domain and not domain.endswith(f".{brand}.com") and not domain == f"{brand}.com":
+            brand_impersonation = True
+            break
+    
+    # Check for suspicious TLD
+    domain_parts = domain.split('.')
+    has_suspicious_tld = False
+    if len(domain_parts) > 1 and domain_parts[-1].lower() in suspicious_tlds:
+        has_suspicious_tld = True
     
     # Check for excessive subdomains
     subdomain_count = len(domain.split('.')) - 2
@@ -109,6 +141,11 @@ def fallback_phishing_check(url):
     
     # Check for presence of @ symbol in URL (often used in phishing)
     has_at_symbol = '@' in url
+    
+    # Check for unusual port
+    has_unusual_port = False
+    if ":" in domain and not domain.endswith(":80") and not domain.endswith(":443"):
+        has_unusual_port = True
     
     # Check for URL shortener services
     shortener_services = ['bit.ly', 'tinyurl', 'goo.gl', 't.co', 'is.gd', 'cli.gs', 'ow.ly']
@@ -123,6 +160,16 @@ def fallback_phishing_check(url):
     risk_score += 15 if has_at_symbol else 0  # @ symbol adds 15 points
     risk_score += 15 if is_shortened else 0  # URL shortener adds 15 points
     risk_score += min(url_length // 20, 10)  # URL length (max 10 points)
+    risk_score += 30 if brand_impersonation else 0  # Brand impersonation is very suspicious
+    risk_score += 15 if has_suspicious_tld else 0  # Suspicious TLD
+    risk_score += 10 if has_unusual_port else 0  # Unusual port
+    risk_score += 25 if 'scam' in domain else 0  # Domain explicitly contains "scam"
+    
+    # Non-standard TLD (not .com, .org, .net, .edu, .gov)
+    std_tlds = ['com', 'org', 'net', 'edu', 'gov', 'co', 'io', 'info', 'biz', 'mil']
+    if domain_parts and len(domain_parts) > 1:
+        if domain_parts[-1].lower() not in std_tlds:
+            risk_score += 5
     
     # Normalize to a percentage (0-100)
     risk_percentage = min(risk_score, 100)
@@ -132,17 +179,23 @@ def fallback_phishing_check(url):
 @st.cache_resource
 def load_model():
     """Load the ML model from HuggingFace Hub (cached for performance)"""
-    REPO_ID = "pirocheto/phishing-url-detection"
-    FILENAME = "model.pkl"
-    
     try:
-        model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
-        # Load the model using joblib
-        model = joblib.load(model_path)
-        return model, None, False
-    except Exception as e:
-        error_msg = str(e)
-        return None, f"Error loading model: {error_msg}", False
+        # Check if sklearn is available
+        import sklearn
+        
+        REPO_ID = "pirocheto/phishing-url-detection"
+        FILENAME = "model.pkl"
+        
+        try:
+            model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
+            # Load the model using joblib
+            model = joblib.load(model_path)
+            return model, None, False
+        except Exception as e:
+            error_msg = str(e)
+            return None, f"Error loading model: {error_msg}", False
+    except ImportError:
+        return None, "Error loading model: Missing scikit-learn package. Please install it with 'pip install scikit-learn'.", False
 
 # Load the model
 model, error_message, is_locale_error = load_model()
