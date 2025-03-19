@@ -238,8 +238,8 @@ def show_examples():
         with col1:
             st.markdown("**🟢 Likely Safe:**")
             examples_safe = [
-                "https://nitte.edu.in/nmit/"
-                "http://www.medicalnewstoday.com/articles/188939.php",
+                "https://nitte.edu.in/nmit/",
+                "http://www.1337x.to",
                 "https://github.com",
                 "https://www.youtube.com"
             ]
@@ -255,7 +255,7 @@ def show_examples():
         with col2:
             st.markdown("**🔴 Likely Phishing:**")
             examples_phishing = [
-                "https://amazon.in@linkir.cyou?id=11735124372375"
+                "https://amazon.in@linkir.cyou?id=11735124372375",
                 "http://clubedemilhagem.com/home.php",
                 "http://login-paypal.com.secure-checkout.info", 
                 "http://verify-account.net/signin"
